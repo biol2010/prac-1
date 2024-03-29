@@ -1,0 +1,252 @@
+---
+title: "BIOL2010 prac series one"
+output: 
+  learnr::tutorial:
+    progressive: TRUE
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+
+# attach packages
+library(DT)
+library(forcats)
+library(gradethis)
+library(learnr)
+library(knitr)
+library(readxl) 
+library(rlang)
+library(rprojroot)
+library(tidyverse)
+
+# read in your dataset
+raw_egg_dat <- read.csv(file = "data/biol2010_prac_1_dataset_2023.csv")
+
+egg_dat <- raw_egg_dat %>% 
+  rename(egg_count = response) %>% 
+  group_by(cage) %>% 
+  filter(sum(egg_count) != 0) %>% 
+  ungroup()
+
+plot_egg_dat <- egg_dat %>% 
+  group_by(plant) %>% 
+  summarise(mean_egg_count = mean(egg_count),
+            se_egg_count = sd(egg_count)/sqrt(n())) %>% 
+  ungroup()
+
+# shown when "submit answer" gradethis button is clicked
+msg_work_saved <- "Code saved!"
+
+# use gradethis internals to save student code 
+save_via_gradethis <- function(ex_env) {
+  
+  # make the entered_code tibble if this is the first time an exercise has been "graded"
+  if (!exists("i")) {
+    entered_code <- tibble(exercise = "header",
+                           code = "# BIOL2010 prac series one\n# YOUR_NAME -- TODAY'S DATE")
+    i <<- 1
+  } else {
+    # do nothing
+  }
+  
+  # collect the chunk label and user code from the exercise environment
+  incoming_code <<- tibble(exercise = ex_env$.label,
+                           code = ex_env$.user_code)
+  
+  # use super-assignment to update global tibble of saved code
+  entered_code <<- rows_upsert(entered_code,
+                               incoming_code,
+                               by = "exercise")
+  
+  if (TRUE) {
+    pass(message = msg_work_saved)
+  } else {
+    fail()
+  }
+  
+}
+
+# import skeleton tibble (contains big header and comment block texts)
+source("helpers/script-skeleton.R")
+
+# get a normal non-learnr working directory
+work_dir <- getwd()
+
+# assign a position in saved file to each of the learnr exercises
+exercise_order <- tibble(exercise = c("header",
+                                      "skeleton_pt1",
+                                      "error-bar-plot",
+                                      "skeleton_pt2",
+                                      "t-test"),
+                         order = seq(1:5))
+
+# modify entered_code at end of interactive tutorial (e.g. add line spacing; 
+# add heading comments throughout) and save to a .R file
+create_file_from_saved_code <- function() {
+  
+  text <- entered_code %>% 
+    mutate(code = str_c(code, "\n")) %>% 
+    bind_rows(., skeleton) %>% 
+    left_join(., exercise_order,
+              by = "exercise") %>%
+    arrange(order) %>% 
+    add_row(exercise = "finale",
+            code = "#") %>% 
+    mutate(code = case_when(exercise == "error-bar-plot" ~ 
+                              paste0(lag(code, 1), code),
+                            TRUE ~ code)) %>%
+    filter(exercise != "skeleton_pt1") %>%
+    pull(code)
+  
+  save_filepath <- paste0(work_dir, "/biol2010-prac1-your-code.R")
+  
+  file.create(save_filepath)
+  file_connection <- file(save_filepath)
+  writeLines(text,
+             file_connection)
+  close(file_connection)
+  
+}
+
+
+```
+
+## A neon green horror
+###
+Have a look at your oviposition data below.
+
+```{r nice-view-data, echo=FALSE}
+
+datatable(egg_dat,
+          rownames = FALSE,
+          options = list(dom = "lpt"))
+
+```
+<br>
+What plot could we use to visualise our data?
+
+###
+Let's turn your plot idea into code! 
+
+```{r initial-col-plot, exercise=TRUE}
+
+ggplot(data = plot_egg_dat) +
+  geom_SOMETHING(aes(x = PREDICTOR_VARIABLE,
+               y = RESPONSE_VARIABLE),
+           fill = "green",
+           colour = "orange",
+           width = 0.25,
+           stat = "identity") +
+  scale_x_discrete(name = "idk mate, plants or smth?",
+                   labels = c("chinese cabbage",
+                              "the boring one")) +
+  scale_y_continuous(name = "uhhh ???",
+                     expand = expansion(mult = c(0, 0.05))) +
+  theme_classic() %+replace%
+  theme(axis.text = element_text(colour = "black",
+                                 size = rel(0.75)),
+        axis.title.x = element_text(margin = margin(6, 0, 0, 0)))
+
+```
+
+Once you've fixed the code above, you should now be looking at a _pretty_ plot --- but it's still missing a key scientific element.
+
+###
+Let's add some error bars to your plot.
+
+```{r error-bar-plot, exercise=TRUE}
+
+PASTE_IN_YOUR_PLOT_CODE_FROM_ABOVE + # and leave my plus symbol alone >:(
+  geom_SOMETHING(aes(x = PREDICTOR_VARIABLE,
+                    ymin = BOTTOM_OF_THE_ERROR_BAR,
+                    ymax = TOP_OF_ERROR_BAR),
+                width = 0)
+  
+```
+
+``` {r error-bar-plot-check}
+
+grade_this({
+  
+  # access the check_env from magic internals of gradethis 
+  ex_env <- parent.frame()$check_env
+  
+  save_via_gradethis(ex_env)
+  
+})
+
+```
+
+You should now have a plot that is both _pretty_ and _scientifically complete_ --- how thrilling. 
+
+Hit **Submit Answer** once you are happy with this graph so you can save it for later. 
+
+###
+```{r fig-capt-writing, echo=FALSE}
+
+question("Write a caption for your figure here:",
+         type = "learnr_text",
+         answer("literally why even ask for answer dude",
+                correct = T),
+         submit_button = "Save for now...",
+         allow_retry = TRUE,
+         incorrect = "Saved!",
+         try_again_button = "Enable editing again...")
+
+```
+
+## Making a difference
+###
+How can we tell if there's a _significant_ difference in oviposition between the cabbages? 
+
+```{r t-test, exercise=TRUE}
+
+SOME_STATISTICAL_TEST(paired = ???,
+       x = egg_dat %>% 
+         filter(plant == "one_of_your_plant_options") %>% 
+         pull(RESPONSE_VARIABLE),
+       y = egg_dat %>% 
+         filter(plant == "the_other_option") %>% 
+         pull(RESPONSE_VARIABLE))
+
+```
+
+```{r t-test-check}
+
+grade_this({
+  ex_env <- parent.frame()$check_env
+  save_via_gradethis(ex_env)
+})
+
+```
+
+###
+```{r t-test-writing, echo=FALSE}
+
+question("Write an interpretation of your t-test results here:",
+         type = "learnr_text",
+         answer("literally why even ask for answer dude",
+                correct = T),
+         submit_button = "Save for now...",
+         allow_retry = TRUE,
+         incorrect = "Saved!",
+         try_again_button = "Enable editing again...")
+
+```
+
+## Moving out
+
+You have now successfully:
+
+* made a good figure; 
+* written a caption for it;
+* conducted a statistical analysis; and
+* written an intepretation for it.
+
+Before exiting this tutorial, you must **Run Code** below, to create a file containing your lovely saved code. 
+
+```{r create-file, exercise=TRUE}
+
+create_file_from_saved_code()
+
+```
